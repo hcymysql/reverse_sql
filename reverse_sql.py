@@ -201,14 +201,20 @@ def main(only_tables=None, only_operation=None, mysql_host=None, mysql_port=None
 
         sql = item["sql"]
         rollback_sql = item["rollback_sql"]
-        #print(
-            #f"-- SQL执行时间:{current_time} \n-- 原生sql:\n \t-- {sql} \n-- 回滚sql:\n \t{rollback_sql}\n-- ----------------------------------------------------------\n")
+
+        # 将字符串类型的时间转换为datetime对象
+        #current_time_obj = datetime.datetime.strptime(current_time, "%Y-%m-%d %H:%M:%S")
+
+        # 格式化日期时间，生成一个新的字符串，例如：20230707_100000
+        #formatted_time = current_time_obj.strftime("%Y%m%d_%H%M%S")
+
         if print_output:
             print(f"-- SQL执行时间:{current_time} \n-- 原生sql:\n \t-- {sql} \n-- 回滚sql:\n \t{rollback_sql}\n-- ----------------------------------------------------------\n")
 
         # 写入文件
+        #filename = f"{binlogevent.schema}_{binlogevent.table}_recover_{formatted_time}.sql"
         filename = f"{binlogevent.schema}_{binlogevent.table}_recover.sql"
-        with open(filename, "w", encoding="utf-8") as file:
+        with open(filename, "a", encoding="utf-8") as file:
             file.write(f"-- SQL执行时间:{current_time}\n")
             file.write(f"-- 原生sql:\n \t-- {sql}\n")
             file.write(f"-- 回滚sql:\n \t{rollback_sql}\n")
@@ -235,7 +241,7 @@ Example usage:
     parser.add_argument("--binlog-pos", dest="binlog_pos", type=int, default=4, help="Binlog位置，默认4")
     parser.add_argument("--start-time", dest="st", type=str, help="起始时间", required=True)
     parser.add_argument("--end-time", dest="et", type=str, help="结束时间", required=True)
-    parser.add_argument("--max-workers", dest="max_workers", type=int, default=10, help="线程数，默认10")
+    parser.add_argument("--max-workers", dest="max_workers", type=int, default=4, help="线程数，默认10")
     parser.add_argument("--print", dest="print_output", action="store_true", help="将解析后的SQL输出到终端")
     args = parser.parse_args()
 
