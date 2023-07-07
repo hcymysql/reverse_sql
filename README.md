@@ -73,3 +73,8 @@ Example usage:
 ```
 
 工具运行后，会在当前目录下生成一个{db}_{table}_recover.sql文件，保存着原生SQL 和 反向SQL，如果想将结果输出到终端前台，可以指定--print选项。
+
+![图片](https://github.com/hcymysql/reverse_sql/assets/19261879/b06528a6-fbff-4e00-8adf-0cba19737d66)
+
+注：reverse_sql 支持MySQL 5.7/8.0 和 MariaDB
+
