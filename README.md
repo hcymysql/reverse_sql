@@ -28,3 +28,46 @@ reverse_sql 是一个用于解析和转换 MySQL 二进制日志（binlog）的�
     对于最后一个线程（i=3），start_time 是 1625558400 + 3 * time_range。
     
 这样，每个线程的开始时间都会有所偏移，确保处理的时间范围没有重叠，并且覆盖了整个时间范围。
+
+### 使用
+```
+shell> ./reverse_sql --help
+usage: reverse_sql [-h] [-ot ONLY_TABLES [ONLY_TABLES ...]] [-op ONLY_OPERATION] -H MYSQL_HOST
+                   -P MYSQL_PORT -u MYSQL_USER -p MYSQL_PASSWD -d MYSQL_DATABASE
+                   [-c MYSQL_CHARSET] --binlog-file BINLOG_FILE [--binlog-pos BINLOG_POS]
+                   --start-time ST --end-time ET [--max-workers MAX_WORKERS] [--print]
+
+Binlog数据恢复，生成反向SQL语句。
+
+options:
+  -h, --help            show this help message and exit
+  -ot ONLY_TABLES [ONLY_TABLES ...], --only-tables ONLY_TABLES [ONLY_TABLES ...]
+                        设置要恢复的表，多张表用,逗号分隔
+  -op ONLY_OPERATION, --only-operation ONLY_OPERATION
+                        设置误操作时的命令（insert/update/delete）
+  -H MYSQL_HOST, --mysql-host MYSQL_HOST
+                        MySQL主机名
+  -P MYSQL_PORT, --mysql-port MYSQL_PORT
+                        MySQL端口号
+  -u MYSQL_USER, --mysql-user MYSQL_USER
+                        MySQL用户名
+  -p MYSQL_PASSWD, --mysql-passwd MYSQL_PASSWD
+                        MySQL密码
+  -d MYSQL_DATABASE, --mysql-database MYSQL_DATABASE
+                        MySQL数据库名
+  -c MYSQL_CHARSET, --mysql-charset MYSQL_CHARSET
+                        MySQL字符集，默认utf8
+  --binlog-file BINLOG_FILE
+                        Binlog文件
+  --binlog-pos BINLOG_POS
+                        Binlog位置，默认4
+  --start-time ST       起始时间
+  --end-time ET         结束时间
+  --max-workers MAX_WORKERS
+                        线程数，默认10
+  --print               将解析后的SQL输出到终端
+
+Example usage:
+    shell> ./reverse_sql -ot table1 -op delete -H 192.168.198.239 -P 3336 -u admin -p hechunyang -d hcy \
+            --binlog-file mysql-bin.000124 --start-time "2023-07-06 10:00:00" --end-time "2023-07-06 22:00:00" 
+```
