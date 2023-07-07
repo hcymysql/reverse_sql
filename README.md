@@ -64,7 +64,7 @@ options:
   --start-time ST       起始时间
   --end-time ET         结束时间
   --max-workers MAX_WORKERS
-                        线程数，默认10
+                        线程数，默认4
   --print               将解析后的SQL输出到终端
 
 Example usage:
