@@ -161,15 +161,14 @@ def main(only_tables=None, only_operation=None, mysql_host=None, mysql_port=None
     start_time = int(time.mktime(time.strptime(st, '%Y-%m-%d %H:%M:%S')))
     end_time = int(time.mktime(time.strptime(et, '%Y-%m-%d %H:%M:%S')))
 
-    interval = (end_time - start_time) // 10  # 将时间范围划分为 10 等份
+    interval = (end_time - start_time) // max_workers  # 将时间范围划分为 10 等份
     executor = ThreadPoolExecutor(max_workers=max_workers)
-    tasks = []
 
     for i in range(max_workers):
         task_start_time = start_time + i * interval
         task_end_time = task_start_time + interval
         if i == (max_workers-1):
-            task_end_time = end_time
+            task_end_time = end_time - (max_workers-1) * interval
 
         stream = BinLogStreamReader(
             connection_settings=source_mysql_settings,
@@ -182,20 +181,16 @@ def main(only_tables=None, only_operation=None, mysql_host=None, mysql_port=None
             only_tables=only_tables
         )
 
+        tasks = []
         for binlogevent in stream:
             if binlogevent.timestamp < task_start_time:  # 如果事件的时间小于任务的起始时间，则继续迭代下一个事件
                 continue
             elif binlogevent.timestamp > task_end_time:  # 如果事件的时间大于任务的结束时间，则结束该任务的迭代
                 break
-            task = executor.submit(process_binlogevent, binlogevent, start_time, end_time)
+            task = executor.submit(process_binlogevent, binlogevent, task_start_time, task_end_time)
             tasks.append(task)
-        """
-        if binlogevent.timestamp > end_time:
-            print(stream.log_file, stream.log_pos)
-            break
-        """
 
-    wait(tasks)
+        wait(tasks)
     # print(combined_array)
 
     sorted_array = sorted(combined_array, key=lambda x: x["event_time"])
@@ -280,3 +275,4 @@ Example usage:
         max_workers=args.max_workers,
         print_output=args.print_output
     )
+
