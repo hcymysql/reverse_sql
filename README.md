@@ -17,7 +17,7 @@ reverse_sql 是一个用于解析和转换 MySQL 二进制日志（binlog）的�
 
 调用官方 https://python-mysql-replication.readthedocs.io/ 库来实现，通过指定的时间范围，转换为timestamp时间戳，将整个时间范围平均分配给每个线程。
 
-由于BinLogStreamReader并不支持直接对时间戳的解析，固在每个任务开始之前，使用上一个任务处理过的 binlog_file 和 binlog_pos，这样后续的线程就可以获取到上一个线程处理过的 binlog 文件名和 position，然后进行后续的并发处理。
+由于 BinLogStreamReader 并不支持指定时间戳来进行递增解析，固在每个任务开始之前，使用上一个任务处理过的 binlog_file 和 binlog_pos，这样后续的线程就可以获取到上一个线程处理过的 binlog 文件名和 position，然后进行后续的并发处理。
 
 假设开始时间戳 start_timestamp 是 1625558400，线程数量 num_threads 是 4，整个时间范围被平均分配给每个线程。那么，通过计算可以得到以下结果：
 
