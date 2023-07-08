@@ -78,3 +78,8 @@ Example usage:
 
 注：reverse_sql 支持MySQL 5.7/8.0 和 MariaDB，适用于CentOS 7系统。
 
+### 恢复
+
+在{db}_{table}_recover.sql文件中找到你刚才误操作的DML语句，然后在MySQL数据库中执行逆向工程后的 SQL 以恢复数据。
+
+
