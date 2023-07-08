@@ -64,7 +64,7 @@ options:
   --start-time ST       起始时间
   --end-time ET         结束时间
   --max-workers MAX_WORKERS
-                        线程数，默认4
+                        线程数，默认4（并发越高，锁的开销就越大，适当调整并发数）
   --print               将解析后的SQL输出到终端
 
 Example usage:
