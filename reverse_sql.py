@@ -4,7 +4,9 @@ import time
 import datetime
 import pytz
 import sys
+import threading
 from concurrent.futures import ThreadPoolExecutor, wait
+from queue import Queue
 import pymysql
 from pymysqlreplication import BinLogStreamReader
 from pymysqlreplication.row_event import (
@@ -15,7 +17,11 @@ from pymysqlreplication.row_event import (
 
 timezone = pytz.timezone('Asia/Shanghai')
 
+result_queue = Queue()
 combined_array = []
+
+# 创建一个锁对象
+file_lock = threading.Lock()
 
 def check_binlog_settings(mysql_host=None, mysql_port=None, mysql_user=None,
                           mysql_passwd=None, mysql_database=None, mysql_charset=None):
@@ -55,10 +61,11 @@ def check_binlog_settings(mysql_host=None, mysql_port=None, mysql_user=None,
 
 def process_binlogevent(binlogevent, start_time, end_time):
     database_name = binlogevent.schema
-    event_time = binlogevent.timestamp
-
+    
     if start_time <= binlogevent.timestamp <= end_time:
         for row in binlogevent.rows:
+            event_time = binlogevent.timestamp
+
             if isinstance(binlogevent, WriteRowsEvent):
                 if only_operation and only_operation != 'insert':
                     continue
@@ -76,7 +83,7 @@ def process_binlogevent(binlogevent, start_time, end_time):
                                 if isinstance(v, (str, datetime.datetime)) else 'NULL' if v is None else str(v))
                                 for k, v in row["values"].items()]))
 
-                    combined_array.append({"event_time": event_time, "sql": sql, "rollback_sql": rollback_sql})
+                    result_queue.put({"event_time": event_time, "sql": sql, "rollback_sql": rollback_sql})
 
             elif isinstance(binlogevent, UpdateRowsEvent):
                 if only_operation and only_operation != 'update':
@@ -118,7 +125,7 @@ def process_binlogevent(binlogevent, start_time, end_time):
 
                     rollback_sql = f"UPDATE {database_name}.{binlogevent.table} SET {rollback_set_clause} WHERE {rollback_where_clause}"
 
-                    combined_array.append({"event_time": event_time, "sql": sql, "rollback_sql": rollback_sql})
+                    result_queue.put({"event_time": event_time, "sql": sql, "rollback_sql": rollback_sql})
 
             elif isinstance(binlogevent, DeleteRowsEvent):
                 if only_operation and only_operation != 'delete':
@@ -138,7 +145,7 @@ def process_binlogevent(binlogevent, start_time, end_time):
                         for i in list(row["values"].values())])
                     )
 
-                    combined_array.append({"event_time": event_time, "sql": sql, "rollback_sql": rollback_sql})
+                    result_queue.put({"event_time": event_time, "sql": sql, "rollback_sql": rollback_sql})
 
 
 def main(only_tables=None, only_operation=None, mysql_host=None, mysql_port=None, mysql_user=None, mysql_passwd=None,
@@ -170,7 +177,8 @@ def main(only_tables=None, only_operation=None, mysql_host=None, mysql_port=None
         task_start_time = start_time + i * interval
         task_end_time = task_start_time + interval
         if i == (max_workers-1):
-            task_end_time = end_time - (max_workers-1) * interval
+            #task_end_time = end_time - (max_workers-1) * interval
+            task_end_time = end_time
 
         stream = BinLogStreamReader(
             connection_settings=source_mysql_settings,
@@ -193,9 +201,12 @@ def main(only_tables=None, only_operation=None, mysql_host=None, mysql_port=None
             tasks.append(task)
 
         wait(tasks)
-    # print(combined_array)
+
+    while not result_queue.empty():
+        combined_array.append(result_queue.get())
 
     sorted_array = sorted(combined_array, key=lambda x: x["event_time"])
+
     for item in sorted_array:
         event_time = item["event_time"]
         dt = datetime.datetime.fromtimestamp(event_time, tz=timezone)
@@ -216,11 +227,14 @@ def main(only_tables=None, only_operation=None, mysql_host=None, mysql_port=None
         # 写入文件
         #filename = f"{binlogevent.schema}_{binlogevent.table}_recover_{formatted_time}.sql"
         filename = f"{binlogevent.schema}_{binlogevent.table}_recover.sql"
-        with open(filename, "a", encoding="utf-8") as file:
-            file.write(f"-- SQL执行时间:{current_time}\n")
-            file.write(f"-- 原生sql:\n \t-- {sql}\n")
-            file.write(f"-- 回滚sql:\n \t{rollback_sql}\n")
-            file.write("-- ----------------------------------------------------------\n")
+        with file_lock:  # 获取文件锁
+            with open(filename, "a", encoding="utf-8") as file:
+    
+                file.write(f"-- SQL执行时间:{current_time}\n")
+                file.write(f"-- 原生sql:\n \t-- {sql}\n")
+                file.write(f"-- 回滚sql:\n \t{rollback_sql}\n")
+                file.write("-- ----------------------------------------------------------\n")
+
     stream.close()
     executor.shutdown()
 
@@ -243,7 +257,7 @@ Example usage:
     parser.add_argument("--binlog-pos", dest="binlog_pos", type=int, default=4, help="Binlog位置，默认4")
     parser.add_argument("--start-time", dest="st", type=str, help="起始时间", required=True)
     parser.add_argument("--end-time", dest="et", type=str, help="结束时间", required=True)
-    parser.add_argument("--max-workers", dest="max_workers", type=int, default=10, help="线程数，默认10")
+    parser.add_argument("--max-workers", dest="max_workers", type=int, default=4, help="线程数，默认4")
     parser.add_argument("--print", dest="print_output", action="store_true", help="将解析后的SQL输出到终端")
     args = parser.parse_args()
 
@@ -283,4 +297,3 @@ Example usage:
         max_workers=args.max_workers,
         print_output=args.print_output
     )
-
