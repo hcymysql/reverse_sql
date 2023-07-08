@@ -76,5 +76,5 @@ Example usage:
 
 ![图片](https://github.com/hcymysql/reverse_sql/assets/19261879/b06528a6-fbff-4e00-8adf-0cba19737d66)
 
-注：reverse_sql 支持MySQL 5.7/8.0 和 MariaDB
+注：reverse_sql 支持MySQL 5.7/8.0 和 MariaDB，适用于CentOS 7系统。
 
