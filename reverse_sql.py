@@ -257,7 +257,7 @@ Example usage:
     parser.add_argument("--binlog-pos", dest="binlog_pos", type=int, default=4, help="Binlog位置，默认4")
     parser.add_argument("--start-time", dest="st", type=str, help="起始时间", required=True)
     parser.add_argument("--end-time", dest="et", type=str, help="结束时间", required=True)
-    parser.add_argument("--max-workers", dest="max_workers", type=int, default=4, help="线程数，默认4")
+    parser.add_argument("--max-workers", dest="max_workers", type=int, default=4, help="线程数，默认4（并发越高，锁的开销就越大，适当调整并发数）")
     parser.add_argument("--print", dest="print_output", action="store_true", help="将解析后的SQL输出到终端")
     args = parser.parse_args()
 
