@@ -173,23 +173,29 @@ def main(only_tables=None, only_operation=None, mysql_host=None, mysql_port=None
     interval = (end_time - start_time) // max_workers  # 将时间范围划分为 10 等份
     executor = ThreadPoolExecutor(max_workers=max_workers)
 
+    stream = BinLogStreamReader(
+        connection_settings=source_mysql_settings,
+        server_id=1234567890,
+        blocking=False,
+        resume_stream=True,
+        only_events=[WriteRowsEvent, UpdateRowsEvent, DeleteRowsEvent],
+        log_file=binlog_file,
+        log_pos=int(binlog_pos),
+        only_tables=only_tables
+    )
+
+    next_binlog_file = binlog_file
+    next_binlog_pos = binlog_pos
+
+    next_binlog_file_lock = threading.Lock()
+    next_binlog_pos_lock = threading.Lock()
+    
     for i in range(max_workers):
         task_start_time = start_time + i * interval
         task_end_time = task_start_time + interval
         if i == (max_workers-1):
             #task_end_time = end_time - (max_workers-1) * interval
             task_end_time = end_time
-
-        stream = BinLogStreamReader(
-            connection_settings=source_mysql_settings,
-            server_id=1234567890,
-            blocking=False,
-            resume_stream=True,
-            only_events=[WriteRowsEvent, UpdateRowsEvent, DeleteRowsEvent],
-            log_file=binlog_file,
-            log_pos=int(binlog_pos),
-            only_tables=only_tables
-        )
 
         tasks = []
         for binlogevent in stream:
@@ -198,9 +204,37 @@ def main(only_tables=None, only_operation=None, mysql_host=None, mysql_port=None
             elif binlogevent.timestamp > task_end_time:  # 如果事件的时间大于任务的结束时间，则结束该任务的迭代
                 break
             task = executor.submit(process_binlogevent, binlogevent, task_start_time, task_end_time)
+
+            with next_binlog_file_lock:
+                if stream.log_file > next_binlog_file:
+                    next_binlog_file = stream.log_file
+
+            with next_binlog_pos_lock:
+                if stream.log_file == next_binlog_file and stream.log_pos > next_binlog_pos:
+                    next_binlog_pos = stream.log_pos
+            """
+            with next_binlog_file_lock:
+                next_binlog_file = stream.log_file
+
+            with next_binlog_pos_lock:
+                next_binlog_pos = stream.log_pos
+            """
             tasks.append(task)
 
         wait(tasks)
+
+        stream.close()
+
+        stream = BinLogStreamReader(
+            connection_settings=source_mysql_settings,
+            server_id=1234567890,
+            blocking=False,
+            resume_stream=True,
+            only_events=[WriteRowsEvent, UpdateRowsEvent, DeleteRowsEvent],
+            log_file=next_binlog_file,
+            log_pos=int(next_binlog_pos),
+            only_tables=only_tables
+        )
 
     while not result_queue.empty():
         combined_array.append(result_queue.get())
@@ -257,7 +291,7 @@ Example usage:
     parser.add_argument("--binlog-pos", dest="binlog_pos", type=int, default=4, help="Binlog位置，默认4")
     parser.add_argument("--start-time", dest="st", type=str, help="起始时间", required=True)
     parser.add_argument("--end-time", dest="et", type=str, help="结束时间", required=True)
-    parser.add_argument("--max-workers", dest="max_workers", type=int, default=4, help="线程数，默认4（并发越高，锁的开销就越大，适当调整并发数）")
+    parser.add_argument("--max-workers", dest="max_workers", type=int, default=4, help="线程数，默认4")
     parser.add_argument("--print", dest="print_output", action="store_true", help="将解析后的SQL输出到终端")
     args = parser.parse_args()
 
