@@ -93,6 +93,8 @@ def process_binlogevent(binlogevent, start_time, end_time):
                     for k, v in row["after_values"].items():
                         if isinstance(v, str):
                             set_values.append(f"`{k}`='{v}'")
+                        elif isinstance(v, datetime.datetime):
+                            set_values.append(f"`{k}`='{v}'")  # 将时间字段转换为字符串形式
                         else:
                             set_values.append(f"`{k}`={v}" if v is not None else f"`{k}`=NULL")
                     set_clause = ','.join(set_values)
@@ -101,6 +103,8 @@ def process_binlogevent(binlogevent, start_time, end_time):
                     for k, v in row["before_values"].items():
                         if isinstance(v, str):
                             where_values.append(f"`{k}`='{v}'")
+                        elif isinstance(v, datetime.datetime):
+                            where_values.append(f"`{k}`='{v}'")  # 添加对时间类型的处理
                         else:
                             where_values.append(f"`{k}`={v}" if v is not None else f"`{k}`=NULL")
                     where_clause = ' AND '.join(where_values)
@@ -111,6 +115,8 @@ def process_binlogevent(binlogevent, start_time, end_time):
                     for k, v in row["before_values"].items():
                         if isinstance(v, str):
                             rollback_set_values.append(f"`{k}`='{v}'")
+                        elif isinstance(v, datetime.datetime):
+                            rollback_set_values.append(f"`{k}`='{v}'")  # 添加对时间类型的处理
                         else:
                             rollback_set_values.append(f"`{k}`={v}" if v is not None else f"`{k}`=NULL")
                     rollback_set_clause = ','.join(rollback_set_values)
@@ -119,6 +125,8 @@ def process_binlogevent(binlogevent, start_time, end_time):
                     for k, v in row["after_values"].items():
                         if isinstance(v, str):
                             rollback_where_values.append(f"`{k}`='{v}'")
+                        elif isinstance(v, datetime.datetime):
+                            rollback_where_values.append(f"`{k}`='{v}'")  # 添加对时间类型的处理
                         else:
                             rollback_where_values.append(f"`{k}`={v}" if v is not None else f"`{k}`=NULL")
                     rollback_where_clause = ' AND '.join(rollback_where_values)
@@ -291,7 +299,7 @@ Example usage:
     parser.add_argument("--binlog-pos", dest="binlog_pos", type=int, default=4, help="Binlog位置，默认4")
     parser.add_argument("--start-time", dest="st", type=str, help="起始时间", required=True)
     parser.add_argument("--end-time", dest="et", type=str, help="结束时间", required=True)
-    parser.add_argument("--max-workers", dest="max_workers", type=int, default=4, help="线程数，默认4")
+    parser.add_argument("--max-workers", dest="max_workers", type=int, default=4, help="线程数，默认4（并发越高，锁的开销就越大，适当调整并发数）")
     parser.add_argument("--print", dest="print_output", action="store_true", help="将解析后的SQL输出到终端")
     args = parser.parse_args()
 
