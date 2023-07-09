@@ -70,15 +70,15 @@ def process_binlogevent(binlogevent, start_time, end_time):
                 if only_operation and only_operation != 'insert':
                     continue
                 else:
-                    sql = "INSERT INTO {}({}) VALUES ({})".format(
-                        f"{database_name}.{binlogevent.table}" if database_name else binlogevent.table,
+                    sql = "INSERT INTO {}({}) VALUES ({});".format(
+                        f"`{database_name}`.`{binlogevent.table}`" if database_name else binlogevent.table,
                         ','.join(["`{}`".format(k) for k in row["values"].keys()]),
                         ','.join(["'{}'".format(v) if isinstance(v, (
                         str, datetime.datetime)) else 'NULL' if v is None else str(v)
                         for v in row["values"].values()])
                     )
 
-                    rollback_sql = "DELETE FROM {} WHERE {}".format(f"{database_name}.{binlogevent.table}"
+                    rollback_sql = "DELETE FROM {} WHERE {};".format(f"`{database_name}`.`{binlogevent.table}`"
                                 if database_name else binlogevent.table, ' AND '.join(["`{}`={}".format(k, "'{}'".format(v)
                                 if isinstance(v, (str, datetime.datetime)) else 'NULL' if v is None else str(v))
                                 for k, v in row["values"].items()]))
@@ -96,7 +96,7 @@ def process_binlogevent(binlogevent, start_time, end_time):
                         elif isinstance(v, datetime.datetime):
                             set_values.append(f"`{k}`='{v}'")  # 将时间字段转换为字符串形式
                         else:
-                            set_values.append(f"`{k}`={v}" if v is not None else f"`{k}`=NULL")
+                            set_values.append(f"`{k}`={v}" if v is not None else f"`{k}`= NULL")
                     set_clause = ','.join(set_values)
 
                     where_values = []
@@ -106,10 +106,10 @@ def process_binlogevent(binlogevent, start_time, end_time):
                         elif isinstance(v, datetime.datetime):
                             where_values.append(f"`{k}`='{v}'")  # 添加对时间类型的处理
                         else:
-                            where_values.append(f"`{k}`={v}" if v is not None else f"`{k}`=NULL")
+                            where_values.append(f"`{k}`={v}" if v is not None else f"`{k}` IS NULL")
                     where_clause = ' AND '.join(where_values)
 
-                    sql = f"UPDATE {database_name}.{binlogevent.table} SET {set_clause} WHERE {where_clause}"
+                    sql = f"UPDATE `{database_name}`.`{binlogevent.table}` SET {set_clause} WHERE {where_clause};"
 
                     rollback_set_values = []
                     for k, v in row["before_values"].items():
@@ -128,10 +128,10 @@ def process_binlogevent(binlogevent, start_time, end_time):
                         elif isinstance(v, datetime.datetime):
                             rollback_where_values.append(f"`{k}`='{v}'")  # 添加对时间类型的处理
                         else:
-                            rollback_where_values.append(f"`{k}`={v}" if v is not None else f"`{k}`=NULL")
+                            rollback_where_values.append(f"`{k}`={v}" if v is not None else f"`{k}` IS NULL")
                     rollback_where_clause = ' AND '.join(rollback_where_values)
 
-                    rollback_sql = f"UPDATE {database_name}.{binlogevent.table} SET {rollback_set_clause} WHERE {rollback_where_clause}"
+                    rollback_sql = f"UPDATE `{database_name}`.`{binlogevent.table}` SET {rollback_set_clause} WHERE {rollback_where_clause};"
 
                     result_queue.put({"event_time": event_time, "sql": sql, "rollback_sql": rollback_sql})
 
@@ -139,15 +139,15 @@ def process_binlogevent(binlogevent, start_time, end_time):
                 if only_operation and only_operation != 'delete':
                     continue
                 else:
-                    sql = "DELETE FROM {} WHERE {}".format(
-                        f"{database_name}.{binlogevent.table}" if database_name else binlogevent.table,
+                    sql = "DELETE FROM {} WHERE {};".format(
+                        f"`{database_name}`.`{binlogevent.table}`" if database_name else binlogevent.table,
                         ' AND '.join(["`{}`={}".format(k, "'{}'".format(v) if isinstance(v, (str, datetime.datetime))
                         else 'NULL' if v is None else str(v))
                         for k, v in row["values"].items()])
                     )
 
-                    rollback_sql = "INSERT INTO {}({}) VALUES ({})".format(
-                        f"{database_name}.{binlogevent.table}" if database_name else binlogevent.table,
+                    rollback_sql = "INSERT INTO {}({}) VALUES ({});".format(
+                        f"`{database_name}`.`{binlogevent.table}`" if database_name else binlogevent.table,
                         '`' + '`,`'.join(list(row["values"].keys())) + '`',
                         ','.join(["'%s'" % str(i) if isinstance(i, (str, datetime.datetime)) else 'NULL' if i is None else str(i)
                         for i in list(row["values"].values())])
