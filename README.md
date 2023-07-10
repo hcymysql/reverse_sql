@@ -33,6 +33,7 @@ reverse_sql 是一个用于解析和转换 MySQL 二进制日志（binlog）的�
 
 ### 使用
 ```
+shell> chmod 755 reverse_sql
 shell> ./reverse_sql --help
 usage: reverse_sql [-h] [-ot ONLY_TABLES [ONLY_TABLES ...]] [-op ONLY_OPERATION] -H MYSQL_HOST
                    -P MYSQL_PORT -u MYSQL_USER -p MYSQL_PASSWD -d MYSQL_DATABASE
@@ -68,6 +69,7 @@ options:
   --max-workers MAX_WORKERS
                         线程数，默认4（并发越高，锁的开销就越大，适当调整并发数）
   --print               将解析后的SQL输出到终端
+  --replace             将update转换为replace操作
 
 Example usage:
     shell> ./reverse_sql -ot table1 -op delete -H 192.168.198.239 -P 3336 -u admin -p hechunyang -d hcy \
@@ -77,6 +79,8 @@ Example usage:
 ##### 当出现误操作时，只需指定误操作的时间段，其对应的binlog文件（通常你可以通过show master status得到当前的binlog文件名）以及刚才误操作的表，和具体的DML命令，比如update或者delete。
 
 工具运行后，会在当前目录下生成一个{db}_{table}_recover.sql文件，保存着原生SQL（原生SQL会加注释） 和 反向SQL，如果想将结果输出到前台终端，可以指定--print选项。
+
+如果你想把update操作转换为replace，指定--replace选项即可。
 
 ![图片](https://github.com/hcymysql/reverse_sql/assets/19261879/b06528a6-fbff-4e00-8adf-0cba19737d66)
 
