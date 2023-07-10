@@ -18,7 +18,9 @@ from pymysqlreplication.row_event import (
 timezone = pytz.timezone('Asia/Shanghai')
 
 result_queue = Queue()
+result_queue_replace = Queue()
 combined_array = []
+combined_array_replace = []
 
 # 创建一个锁对象
 file_lock = threading.Lock()
@@ -132,8 +134,25 @@ def process_binlogevent(binlogevent, start_time, end_time):
                     rollback_where_clause = ' AND '.join(rollback_where_values)
 
                     rollback_sql = f"UPDATE `{database_name}`.`{binlogevent.table}` SET {rollback_set_clause} WHERE {rollback_where_clause};"
+                   
+                    try:
+                        rollback_replace_set_values = []
+                        for v in row["before_values"].values():
+                           if v is None:
+                               rollback_replace_set_values.append("NULL")
+                           elif isinstance(v, (str, datetime.datetime)):
+                               rollback_replace_set_values.append(f"'{v}'")
+                           else:
+                               rollback_replace_set_values.append(str(v))
+                        rollback_replace_set_clause = ','.join(rollback_replace_set_values)
+                        fields_clause = ','.join([f"`{k}`" for k in row["after_values"].keys()])
+                        rollback_replace_sql = f"REPLACE INTO `{database_name}`.`{binlogevent.table}` ({fields_clause}) VALUES ({rollback_replace_set_clause});"
+                    except Exception as e:
+                        print("出现异常错误：", e)
+                    #print(rollback_replace_sql)
 
                     result_queue.put({"event_time": event_time, "sql": sql, "rollback_sql": rollback_sql})
+                    result_queue_replace.put({"event_time": event_time, "sql": sql, "rollback_sql": rollback_replace_sql})
 
             elif isinstance(binlogevent, DeleteRowsEvent):
                 if only_operation and only_operation != 'delete':
@@ -157,7 +176,7 @@ def process_binlogevent(binlogevent, start_time, end_time):
 
 
 def main(only_tables=None, only_operation=None, mysql_host=None, mysql_port=None, mysql_user=None, mysql_passwd=None,
-         mysql_database=None, mysql_charset=None, binlog_file=None, binlog_pos=None, st=None, et=None, max_workers=None, print_output=False):
+         mysql_database=None, mysql_charset=None, binlog_file=None, binlog_pos=None, st=None, et=None, max_workers=None, print_output=False, replace_output=False):
     valid_operations = ['insert', 'delete', 'update']
 
     if only_operation:
@@ -247,7 +266,14 @@ def main(only_tables=None, only_operation=None, mysql_host=None, mysql_port=None
     while not result_queue.empty():
         combined_array.append(result_queue.get())
 
+    while not result_queue_replace.empty():
+        combined_array_replace.append(result_queue_replace.get())
+
     sorted_array = sorted(combined_array, key=lambda x: x["event_time"])
+    sorted_array_replace = sorted(combined_array_replace, key=lambda x: x["event_time"])
+
+    c_time = datetime.datetime.now()
+    formatted_time = c_time.strftime("%Y-%m-%d_%H:%M:%S")
 
     for item in sorted_array:
         event_time = item["event_time"]
@@ -257,18 +283,12 @@ def main(only_tables=None, only_operation=None, mysql_host=None, mysql_port=None
         sql = item["sql"]
         rollback_sql = item["rollback_sql"]
 
-        # 将字符串类型的时间转换为datetime对象
-        #current_time_obj = datetime.datetime.strptime(current_time, "%Y-%m-%d %H:%M:%S")
-
-        # 格式化日期时间，生成一个新的字符串，例如：20230707_100000
-        #formatted_time = current_time_obj.strftime("%Y%m%d_%H%M%S")
-
         if print_output:
             print(f"-- SQL执行时间:{current_time} \n-- 原生sql:\n \t-- {sql} \n-- 回滚sql:\n \t{rollback_sql}\n-- ----------------------------------------------------------\n")
 
         # 写入文件
-        #filename = f"{binlogevent.schema}_{binlogevent.table}_recover_{formatted_time}.sql"
-        filename = f"{binlogevent.schema}_{binlogevent.table}_recover.sql"
+        filename = f"{binlogevent.schema}_{binlogevent.table}_recover_{formatted_time}.sql"
+        #filename = f"{binlogevent.schema}_{binlogevent.table}_recover.sql"
         with file_lock:  # 获取文件锁
             with open(filename, "a", encoding="utf-8") as file:
     
@@ -276,6 +296,30 @@ def main(only_tables=None, only_operation=None, mysql_host=None, mysql_port=None
                 file.write(f"-- 原生sql:\n \t-- {sql}\n")
                 file.write(f"-- 回滚sql:\n \t{rollback_sql}\n")
                 file.write("-- ----------------------------------------------------------\n")
+
+    if replace_output:
+        # update 转换为 replace
+        for item in sorted_array_replace:
+            event_time = item["event_time"]
+            dt = datetime.datetime.fromtimestamp(event_time, tz=timezone)
+            current_time = dt.strftime('%Y-%m-%d %H:%M:%S')
+    
+            sql = item["sql"]
+            rollback_sql = item["rollback_sql"]
+    
+            if print_output:
+                print(
+                    f"-- SQL执行时间:{current_time} \n-- 原生sql:\n \t-- {sql} \n-- 回滚sql:\n \t{rollback_sql}\n-- ----------------------------------------------------------\n")
+    
+            # 写入文件
+            filename = f"{binlogevent.schema}_{binlogevent.table}_recover_{formatted_time}_replace.sql"
+            # filename = f"{binlogevent.schema}_{binlogevent.table}_recover.sql"
+            with file_lock:  # 获取文件锁
+                with open(filename, "a", encoding="utf-8") as file:
+                    file.write(f"-- SQL执行时间:{current_time}\n")
+                    file.write(f"-- 原生sql:\n \t-- {sql}\n")
+                    file.write(f"-- 回滚sql:\n \t{rollback_sql}\n")
+                    file.write("-- ----------------------------------------------------------\n")
 
     stream.close()
     executor.shutdown()
@@ -301,6 +345,7 @@ Example usage:
     parser.add_argument("--end-time", dest="et", type=str, help="结束时间", required=True)
     parser.add_argument("--max-workers", dest="max_workers", type=int, default=4, help="线程数，默认4（并发越高，锁的开销就越大，适当调整并发数）")
     parser.add_argument("--print", dest="print_output", action="store_true", help="将解析后的SQL输出到终端")
+    parser.add_argument("--replace", dest="replace_output", action="store_true", help="将update转换为replace操作")
     args = parser.parse_args()
 
     if args.only_tables:
@@ -337,5 +382,6 @@ Example usage:
         st=args.st,
         et=args.et,
         max_workers=args.max_workers,
-        print_output=args.print_output
+        print_output=args.print_output,
+        replace_output=args.replace_output
     )
