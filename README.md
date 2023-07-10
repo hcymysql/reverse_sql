@@ -88,6 +88,11 @@ Example usage:
 
 在{db}_{table}_recover.sql文件中找到你刚才误操作的DML语句，然后在MySQL数据库中执行逆向工程后的 SQL 以恢复数据。
 
+如果{db}_{table}_recover.sql文件的内容过多，也可以通过awk命令进行分割。
+```
+shell> awk '/^-- SQL执行时间/{filename = "output" ++count ".txt"; print > filename; next} {print > filename}' test_t1_recover.sql
+```
+
 #### 注：reverse_sql 支持MySQL 5.7/8.0 和 MariaDB，适用于CentOS 7系统。
 
 
