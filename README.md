@@ -78,20 +78,32 @@ Example usage:
 
 ##### 当出现误操作时，只需指定误操作的时间段，其对应的binlog文件（通常你可以通过show master status得到当前的binlog文件名）以及刚才误操作的表，和具体的DML命令，比如update或者delete。
 
+工具运行时，首先会进行MySQL的环境检测（if binlog_format != 'ROW' and binlog_row_image != 'FULL'），如果不同时满足这两个条件，程序直接退出。
+
 工具运行后，会在当前目录下生成一个{db}_{table}_recover.sql文件，保存着原生SQL（原生SQL会加注释） 和 反向SQL，如果想将结果输出到前台终端，可以指定--print选项。
 
-如果你想把update操作转换为replace，指定--replace选项即可。
+如果你想把update操作转换为replace，指定--replace选项即可，同时会在当前目录下生成一个{db}_{table}_recover_replace.sql文件。
 
 ![图片](https://github.com/hcymysql/reverse_sql/assets/19261879/b06528a6-fbff-4e00-8adf-0cba19737d66)
+
+MySQL 最小化用户权限：
+
+```
+> GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO `yourname`@`%`;
+
+> GRANT SELECT ON `test`.* TO `yourname`@`%`;
+```
 
 ### 恢复
 
 在{db}_{table}_recover.sql文件中找到你刚才误操作的DML语句，然后在MySQL数据库中执行逆向工程后的 SQL 以恢复数据。
 
-如果{db}_{table}_recover.sql文件的内容过多，也可以通过awk命令进行分割。
+如果{db}_{table}_recover.sql文件的内容过多，也可以通过awk命令进行分割，以便更容易进行排查。
 ```
 shell> awk '/^-- SQL执行时间/{filename = "output" ++count ".sql"; print > filename; next} {print > filename}' test_t1_recover.sql
 ```
+
+不支持drop和truncate操作，因为这两个操作属于物理性删除，需要通过历史备份进行恢复。
 
 #### 注：reverse_sql 支持MySQL 5.7/8.0 和 MariaDB，适用于CentOS 7系统。
 
