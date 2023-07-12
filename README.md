@@ -1,7 +1,7 @@
 # reverse_sql 工具介绍
 reverse_sql 是一个用于解析和转换 MySQL 二进制日志（binlog）的工具。它可以将二进制日志文件中记录的数据库更改操作（如插入、更新、删除）转换为反向的 SQL 语句，以便进行数据恢复。其运行模式需二进制日志设置为 ROW 格式。
 
-### 2023-7-12日更新 - 分之版本（可实现进度展示（处理binlog的event数量和耗时时间））
+### 2023-7-12日更新 - 分之版本（可实现进度条展示（处理binlog的event数量和耗时时间））
 [reverse_sql_progress](https://github.com/hcymysql/reverse_sql/tree/reverse_sql_progress)
 
 该工具的主要功能和特点包括：
