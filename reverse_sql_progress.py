@@ -78,7 +78,7 @@ def process_binlogevent(binlogevent, start_time, end_time):
                         f"`{database_name}`.`{binlogevent.table}`" if database_name else binlogevent.table,
                         ','.join(["`{}`".format(k) for k in row["values"].keys()]),
                         ','.join(["'{}'".format(v) if isinstance(v, (
-                            str, datetime.datetime)) else 'NULL' if v is None else str(v)
+                            str, datetime.datetime, datetime.date)) else 'NULL' if v is None else str(v)
                                   for v in row["values"].values()])
                     )
 
@@ -86,7 +86,7 @@ def process_binlogevent(binlogevent, start_time, end_time):
                                                                      if database_name else binlogevent.table,
                                                                      ' AND '.join(["`{}`={}".format(k, "'{}'".format(v)
                                                                      if isinstance(v, (str,
-                                                                                       datetime.datetime)) else 'NULL' if v is None else str(
+                                                                                       datetime.datetime, datetime.date)) else 'NULL' if v is None else str(
                                                                          v))
                                                                                    for k, v in row["values"].items()]))
 
@@ -100,7 +100,7 @@ def process_binlogevent(binlogevent, start_time, end_time):
                     for k, v in row["after_values"].items():
                         if isinstance(v, str):
                             set_values.append(f"`{k}`='{v}'")
-                        elif isinstance(v, datetime.datetime):
+                        elif isinstance(v, (datetime.datetime, datetime.date)):
                             set_values.append(f"`{k}`='{v}'")  # 将时间字段转换为字符串形式
                         else:
                             set_values.append(f"`{k}`={v}" if v is not None else f"`{k}`= NULL")
@@ -110,7 +110,7 @@ def process_binlogevent(binlogevent, start_time, end_time):
                     for k, v in row["before_values"].items():
                         if isinstance(v, str):
                             where_values.append(f"`{k}`='{v}'")
-                        elif isinstance(v, datetime.datetime):
+                        elif isinstance(v, (datetime.datetime, datetime.date)):
                             where_values.append(f"`{k}`='{v}'")  # 添加对时间类型的处理
                         else:
                             where_values.append(f"`{k}`={v}" if v is not None else f"`{k}` IS NULL")
@@ -122,7 +122,7 @@ def process_binlogevent(binlogevent, start_time, end_time):
                     for k, v in row["before_values"].items():
                         if isinstance(v, str):
                             rollback_set_values.append(f"`{k}`='{v}'")
-                        elif isinstance(v, datetime.datetime):
+                        elif isinstance(v, (datetime.datetime, datetime.date)):
                             rollback_set_values.append(f"`{k}`='{v}'")  # 添加对时间类型的处理
                         else:
                             rollback_set_values.append(f"`{k}`={v}" if v is not None else f"`{k}`=NULL")
@@ -132,7 +132,7 @@ def process_binlogevent(binlogevent, start_time, end_time):
                     for k, v in row["after_values"].items():
                         if isinstance(v, str):
                             rollback_where_values.append(f"`{k}`='{v}'")
-                        elif isinstance(v, datetime.datetime):
+                        elif isinstance(v, (datetime.datetime, datetime.date)):
                             rollback_where_values.append(f"`{k}`='{v}'")  # 添加对时间类型的处理
                         else:
                             rollback_where_values.append(f"`{k}`={v}" if v is not None else f"`{k}` IS NULL")
@@ -145,7 +145,7 @@ def process_binlogevent(binlogevent, start_time, end_time):
                         for v in row["before_values"].values():
                             if v is None:
                                 rollback_replace_set_values.append("NULL")
-                            elif isinstance(v, (str, datetime.datetime)):
+                            elif isinstance(v, (str, datetime.datetime, datetime.date)):
                                 rollback_replace_set_values.append(f"'{v}'")
                             else:
                                 rollback_replace_set_values.append(str(v))
@@ -166,7 +166,7 @@ def process_binlogevent(binlogevent, start_time, end_time):
                 else:
                     sql = "DELETE FROM {} WHERE {};".format(
                         f"`{database_name}`.`{binlogevent.table}`" if database_name else binlogevent.table,
-                        ' AND '.join(["`{}`={}".format(k, "'{}'".format(v) if isinstance(v, (str, datetime.datetime))
+                        ' AND '.join(["`{}`={}".format(k, "'{}'".format(v) if isinstance(v, (str, datetime.datetime, datetime.date))
                         else 'NULL' if v is None else str(v))
                                       for k, v in row["values"].items()])
                     )
@@ -175,7 +175,7 @@ def process_binlogevent(binlogevent, start_time, end_time):
                         f"`{database_name}`.`{binlogevent.table}`" if database_name else binlogevent.table,
                         '`' + '`,`'.join(list(row["values"].keys())) + '`',
                         ','.join(["'%s'" % str(i) if isinstance(i, (
-                        str, datetime.datetime)) else 'NULL' if i is None else str(i)
+                        str, datetime.datetime, datetime.date)) else 'NULL' if i is None else str(i)
                                   for i in list(row["values"].values())])
                     )
 
@@ -235,7 +235,7 @@ def main(only_tables=None, only_operation=None, mysql_host=None, mysql_port=None
         tasks = []
 
         # 创建进度条对象
-        progress_bar = tqdm(desc='Processing binlogevents', unit='event')
+        progress_bar = tqdm(desc='Processing binlogevents', unit='event', leave=True)
 
         event_count = 0  # 初始化事件计数器
 
