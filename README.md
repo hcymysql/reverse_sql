@@ -122,4 +122,4 @@ shell> awk '/^-- SQL执行时间/{filename = "output" ++count ".sql"; print > fi
 
 #### 注：reverse_sql 支持MySQL 5.7/8.0 和 MariaDB，适用于CentOS 7系统。
 
-
+# 8.0默认是caching_sha2_password用户认证，需要更改为 mysql_native_password
