@@ -107,4 +107,25 @@ shell> awk '/^-- SQL执行时间/{filename = "output" ++count ".sql"; print > fi
 
 #### 注：reverse_sql 支持MySQL 5.7/8.0 和 MariaDB，适用于CentOS 7系统。
 
+------------------------------------------------------------------------------------
+### Docker部署使用
+shell> wget https://github.com/hcymysql/reverse_sql/archive/refs/heads/reverse_sql_progress.zip
 
+shell> unzip reverse_sql_progress.zip
+
+shell> cd reverse_sql_progress
+
+shell> vim Dockerfile
+```
+FROM centos:7
+
+COPY reverse_sql /root/
+RUN chmod 755 /root/reverse_sql
+```
+shell> docker build -t reverse_sql .
+
+shell> docker run -itd --name reverse_sql reverse_sql /bin/bash
+
+shell> docker exec -it reverse_sql /root/reverse_sql --help
+
+------------------------------------------------------------------------------------
