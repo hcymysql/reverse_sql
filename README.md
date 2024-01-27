@@ -1,6 +1,12 @@
 # reverse_sql 工具介绍
 reverse_sql 是一个用于解析和转换 MySQL 二进制日志（binlog）的工具。它可以将二进制日志文件中记录的数据库更改操作（如插入、更新、删除）转换为反向的 SQL 语句，以便进行数据恢复。其运行模式需二进制日志设置为 ROW 格式。
+```
+reverse_sql工具版本号: 2.1.1，更新日期：2024-01-27 - 增加json格式支持
 
+MySQL5.7版本用 https://github.com/hcymysql/reverse_sql/releases/download/reverse_sql_json/reverse_sql_mysql57
+
+MySQL8.0版本用 https://github.com/hcymysql/reverse_sql/releases/download/reverse_sql_json/reverse_sql_mysql8
+```
 该工具的主要功能和特点包括：
 
 1、解析二进制日志：reverse_sql 能够解析 MySQL 的二进制日志文件，并还原出其中的 SQL 语句。
