@@ -1,0 +1,4 @@
+pytz
+pymysql
+mysql-replication==0.45.1
+tqdm

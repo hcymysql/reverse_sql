@@ -1,0 +1,4 @@
+pytz
+pymysql
+mysql-replication
+tqdm
